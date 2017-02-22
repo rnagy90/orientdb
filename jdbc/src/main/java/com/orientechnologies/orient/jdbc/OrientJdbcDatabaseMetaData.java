@@ -26,6 +26,7 @@ import com.orientechnologies.orient.core.metadata.schema.OClass;
 import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE;
 import com.orientechnologies.orient.core.metadata.schema.OProperty;
 import com.orientechnologies.orient.core.metadata.schema.OType;
+import com.orientechnologies.orient.core.metadata.sequence.OSequence;
 import com.orientechnologies.orient.core.record.impl.ODocument;
 
 import java.sql.*;
@@ -43,10 +44,18 @@ public class OrientJdbcDatabaseMetaData implements DatabaseMetaData {
   protected final static List<String> TABLE_TYPES = Arrays.asList("TABLE", "SYSTEM TABLE");
   private final OrientJdbcConnection connection;
   private final ODatabaseDocument    database;
+  public static final Set<String> SYSTEM_TABLE_TYPES;
+  
+  static {
+    Set<String> clusters = new HashSet<String>(OMetadata.SYSTEM_CLUSTER);
+    clusters.addAll(Arrays.asList(OSequence.CLASS_NAME.toLowerCase(), "V".toLowerCase(), "E".toLowerCase(), "_studio"));
+    SYSTEM_TABLE_TYPES = Collections.unmodifiableSet(clusters);
+  }
 
   public OrientJdbcDatabaseMetaData(OrientJdbcConnection iConnection, ODatabaseDocument iDatabase) {
     connection = iConnection;
     database = iDatabase;
+    
   }
 
   public boolean allProceduresAreCallable() throws SQLException {
@@ -685,7 +694,7 @@ public class OrientJdbcDatabaseMetaData implements DatabaseMetaData {
       final String className = cls.getName();
       final String type;
 
-      if (OMetadata.SYSTEM_CLUSTER.contains(cls.getName()))
+      if (SYSTEM_TABLE_TYPES.contains(cls.getName().toLowerCase()))
         type = "SYSTEM TABLE";
       else
         type = "TABLE";
@@ -1262,5 +1271,9 @@ public class OrientJdbcDatabaseMetaData implements DatabaseMetaData {
   public boolean isWrapperFor(Class<?> iface) throws SQLException {
 
     return false;
+  }
+
+  public Set<String> getSYSTEM_CLUSTERS() {
+    return SYSTEM_TABLE_TYPES;
   }
 }

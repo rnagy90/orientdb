@@ -112,7 +112,7 @@ public class OrientJdbcResultSet implements ResultSet {
                 int underscore = alias.getValue().indexOf('_');
                 if (underscore > 0) {
                   String maybeFunction = alias.getValue().substring(0, underscore);
-                  if (fc.hasFunction(maybeFunction)) {
+                  if (fc.hasFunction(maybeFunction.toLowerCase())) {
                     fields.add(maybeFunction);
                   } else {
                     fields.add(alias.getValue());

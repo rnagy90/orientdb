@@ -1,17 +1,25 @@
 package com.orientechnologies.orient.jdbc;
 
-import com.orientechnologies.orient.core.OConstants;
-import org.junit.Before;
-import org.junit.Test;
+import static org.assertj.core.api.Assertions.*;
+import static org.junit.Assert.*;
 
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.*;
+import org.junit.Before;
+import org.junit.Test;
+
+import com.orientechnologies.orient.core.OConstants;
+import com.orientechnologies.orient.core.metadata.OMetadata;
 
 public class OrientJdbcDatabaseMetaDataTest extends OrientJdbcBaseTest {
 
@@ -162,6 +170,48 @@ public class OrientJdbcDatabaseMetaDataTest extends OrientJdbcBaseTest {
     rs = metaData.getTables(null, null, null, tableTypes.toArray(new String[2]));
     int tableCount = sizeOf(rs);
     assertThat(tableCount).isEqualTo(16);
+  }
+
+  @Test
+  public void shouldGetSystemTables() throws SQLException {
+    final String systemTableType = "SYSTEM TABLE";
+
+    ResultSet rs = metaData.getTableTypes();
+    List<String> tableTypes = new ArrayList<String>(2);
+    while (rs.next()) {
+      tableTypes.add(rs.getString(1));
+    }
+    assertTrue("The table types should contain's a 'SYSTEM TABLE' type", tableTypes.contains(systemTableType));
+
+    rs = metaData.getTables(null, null, null, new String[]{systemTableType});
+    List<String> systemClassNames = new ArrayList<String>();
+    while (rs.next()) {
+      systemClassNames.add(rs.getString(4).toLowerCase());
+    }
+    assertTrue("The result class names should be in the ", OrientJdbcDatabaseMetaData.SYSTEM_TABLE_TYPES.containsAll(systemClassNames));
+  }
+
+  @Test
+  public void shouldGetNotSystemTables() throws SQLException {
+    final String tableType = "TABLE";
+
+    ResultSet rs = metaData.getTableTypes();
+    List<String> tableTypes = new ArrayList<String>(2);
+    while (rs.next()) {
+      tableTypes.add(rs.getString(1));
+    }
+    assertTrue("The table types should contains a 'TABLE' type", tableTypes.contains(tableType));
+
+    rs = metaData.getTables(null, null, null, new String[]{tableType});
+    boolean containsSystemCluster = false;
+    while (rs.next()) {
+      if (OMetadata.SYSTEM_CLUSTER.contains(rs.getString(4).toLowerCase())) {
+        containsSystemCluster = true;
+        break;
+      }
+    }
+
+    assertFalse("The result shouldn't contains a system table", containsSystemCluster);
   }
 
   @Test

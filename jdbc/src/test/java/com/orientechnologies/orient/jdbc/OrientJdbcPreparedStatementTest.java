@@ -1,13 +1,13 @@
 package com.orientechnologies.orient.jdbc;
 
-import org.junit.Test;
+import static java.sql.ResultSet.*;
+import static org.assertj.core.api.Assertions.*;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import static java.sql.ResultSet.*;
-import static org.assertj.core.api.Assertions.*;
+import org.junit.Test;
 
 public class OrientJdbcPreparedStatementTest extends OrientJdbcBaseTest {
 
@@ -130,6 +130,11 @@ public class OrientJdbcPreparedStatementTest extends OrientJdbcBaseTest {
     //without alias!
     resultSet = conn.createStatement()
         .executeQuery("SELECT count(*) FROM insertable WHERE id = 'someRandomUid'");
+    assertThat(resultSet.getInt(1)).isEqualTo(1);
+
+    // with normal outside function call
+    resultSet = conn.createStatement()
+      .executeQuery("SELECT COUNT(*) FROM insertable WHERE id = 'someRandomUid'");
     assertThat(resultSet.getInt(1)).isEqualTo(1);
   }
 
