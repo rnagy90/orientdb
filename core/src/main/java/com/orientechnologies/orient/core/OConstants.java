@@ -20,11 +20,11 @@
 package com.orientechnologies.orient.core;
 
 public class OConstants {
-  public static final String  ORIENT_VERSION       = "2.2.16";
+  public static final String  ORIENT_VERSION       = "2.2.17";
 
   public static final int     ORIENT_VERSION_MAJOR = 2;
   public static final int     ORIENT_VERSION_MINOR = 2;
-  public static final int     ORIENT_VERSION_HOFIX = 16;
+  public static final int     ORIENT_VERSION_HOFIX = 17;
   public static final boolean SNAPSHOT             = false;
 
   public static final String  ORIENT_URL           = "www.orientdb.com";
