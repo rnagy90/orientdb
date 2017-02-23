@@ -190,7 +190,7 @@ public class OrientJdbcDatabaseMetaDataTest extends OrientJdbcBaseTest {
     rs = metaData.getTables(null, null, null, new String[]{systemTableType});
     List<String> systemClassNames = new ArrayList<String>();
     while (rs.next()) {
-      systemClassNames.add(rs.getString(4).toLowerCase());
+      systemClassNames.add(rs.getString("TABLE_NAME").toLowerCase());
     }
     assertTrue("The result class names should be in the ", OrientJdbcDatabaseMetaData.SYSTEM_TABLE_TYPES.containsAll(systemClassNames));
   }
@@ -209,7 +209,7 @@ public class OrientJdbcDatabaseMetaDataTest extends OrientJdbcBaseTest {
     rs = metaData.getTables(null, null, null, new String[]{tableType});
     boolean containsSystemCluster = false;
     while (rs.next()) {
-      if (OMetadata.SYSTEM_CLUSTER.contains(rs.getString(4).toLowerCase())) {
+      if (OrientJdbcDatabaseMetaData.SYSTEM_TABLE_TYPES.contains(rs.getString("TABLE_NAME").toLowerCase())) {
         containsSystemCluster = true;
         break;
       }
