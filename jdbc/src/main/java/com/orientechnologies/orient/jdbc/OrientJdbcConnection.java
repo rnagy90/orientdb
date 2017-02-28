@@ -17,13 +17,6 @@
  */
 package com.orientechnologies.orient.jdbc;
 
-import com.orientechnologies.orient.core.config.OGlobalConfiguration;
-import com.orientechnologies.orient.core.db.ODatabase;
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool;
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePoolFactory;
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx;
-
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -45,6 +38,13 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
+import com.orientechnologies.orient.core.config.OGlobalConfiguration;
+import com.orientechnologies.orient.core.db.ODatabase;
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePool;
+import com.orientechnologies.orient.core.db.OPartitionedDatabasePoolFactory;
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument;
+import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx;
+
 /**
  * @author Roberto Franchini (CELI Srl - franchini@celi.it)
  * @author Salvatore Piccione (TXT e-solutions SpA - salvo.picci@gmail.com)
@@ -62,12 +62,15 @@ public class OrientJdbcConnection implements Connection {
   private boolean             autoCommit;
   private ODatabase.STATUS    status;
 
+  protected OrientJdbcTransactionalStatement transactionalStatement;
+
   public OrientJdbcConnection(final String jdbcdDUrl, final Properties info) {
     this.dbUrl = jdbcdDUrl.replace("jdbc:orient:", "");
 
     this.info = info;
 
     readOnly = false;
+    autoCommit = true;
     final String username = info.getProperty("user", "admin");
     final String password = info.getProperty("password", "admin");
 
@@ -84,7 +87,7 @@ public class OrientJdbcConnection implements Connection {
   }
 
   public Statement createStatement() throws SQLException {
-    return new OrientJdbcStatement(this);
+    return getStatement();
   }
 
   public PreparedStatement prepareStatement(String sql) throws SQLException {
@@ -126,6 +129,9 @@ public class OrientJdbcConnection implements Connection {
   }
 
   public void commit() throws SQLException {
+    if (transactionalStatement != null && !transactionalStatement.isClosed()) {
+      transactionalStatement.executeTransaction();
+    }
     database.commit();
   }
 
@@ -175,11 +181,11 @@ public class OrientJdbcConnection implements Connection {
   }
 
   public Statement createStatement(int resultSetType, int resultSetConcurrency) throws SQLException {
-    return new OrientJdbcStatement(this);
+    return getStatement();
   }
 
   public Statement createStatement(int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
-    return new OrientJdbcStatement(this);
+    return getStatement();
   }
 
   public Struct createStruct(String typeName, Object[] attributes) throws SQLException {
@@ -316,6 +322,7 @@ public class OrientJdbcConnection implements Connection {
   /**
    * No schema is supported.
    */
+  
   public String getSchema() throws SQLException {
     return null;
   }
@@ -329,5 +336,20 @@ public class OrientJdbcConnection implements Connection {
 
   public Properties getInfo() {
     return info;
+  }
+
+  private OrientJdbcStatement getStatement() throws SQLException {
+    if (autoCommit) {
+      if (transactionalStatement != null) {
+        transactionalStatement.close();
+        transactionalStatement = null;
+      }
+      return new OrientJdbcStatement(this);
+    } else {
+      if (transactionalStatement == null || transactionalStatement.isClosed()) {
+        transactionalStatement = new OrientJdbcTransactionalStatement(this);
+      }
+      return transactionalStatement;
+    }
   }
 }

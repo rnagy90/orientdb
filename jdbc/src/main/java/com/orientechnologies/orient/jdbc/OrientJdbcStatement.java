@@ -98,7 +98,6 @@ public class OrientJdbcStatement implements Statement {
   @Override
   public boolean execute(final String sqlCommand) throws SQLException {
 
-//    System.out.println("sqlCommand = " + sqlCommand);
     if ("".equals(sqlCommand))
       return false;
 
