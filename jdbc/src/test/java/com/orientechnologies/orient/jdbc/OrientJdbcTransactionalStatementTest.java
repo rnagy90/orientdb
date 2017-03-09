@@ -28,12 +28,12 @@ public class OrientJdbcTransactionalStatementTest extends OrientJdbcBaseTest {
   }
 
   @Test
-  public void shouldHasCommitedStatusAfterCommit() throws Exception {
+  public void shouldCreateNewAfterCommit() throws Exception {
     conn.setAutoCommit(false);
-    conn.createStatement();
-    conn.commit();
     OrientJdbcTransactionalStatement statement = (OrientJdbcTransactionalStatement) conn.createStatement();
-    assertTrue(statement.isCommited());
+    conn.commit();
+    OrientJdbcTransactionalStatement newStatement = (OrientJdbcTransactionalStatement) conn.createStatement();
+    assertTrue(statement != newStatement && !statement.equals(newStatement));
   }
 
   @Test
