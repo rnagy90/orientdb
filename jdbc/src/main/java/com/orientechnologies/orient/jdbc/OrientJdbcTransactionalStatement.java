@@ -49,7 +49,7 @@ public class OrientJdbcTransactionalStatement extends OrientJdbcStatement {
 
   public OrientJdbcTransactionalStatement(OrientJdbcConnection iConnection) {
     super(iConnection);
-    nonWrappablePattern = Pattern.compile("(DROP|CREATE) (CLASS|PROPERTY|INDEX) .*");
+    nonWrappablePattern = Pattern.compile("(DROP|CREATE|ALTER) (CLASS|PROPERTY|INDEX|DATABASE) .*");
     nonWrappableBatches = new ArrayList<String>();
   }
 
@@ -100,7 +100,7 @@ public class OrientJdbcTransactionalStatement extends OrientJdbcStatement {
 
   @Override
   public boolean isClosed() throws SQLException {
-    return closed;
+    return closed || commited;
   }
 
   public boolean isCommited() {
@@ -120,14 +120,9 @@ public class OrientJdbcTransactionalStatement extends OrientJdbcStatement {
 
     documents = new ArrayList<ODocument>();
 
-    StringBuilder scriptBuilder = new StringBuilder();
 
     if (nonWrappableBatches.size() > 0) {
       // First run the irreversible commands
-      for (String sql : nonWrappableBatches) {
-        scriptBuilder.append(sql);
-        scriptBuilder.append("\n");
-      }
       executeScript(buildScript(nonWrappableBatches, false));
     }
 
@@ -149,7 +144,7 @@ public class OrientJdbcTransactionalStatement extends OrientJdbcStatement {
     }
 
     for (String sql : scripts) {
-      scriptBuilder.append(sql);
+      scriptBuilder.append(sql.replaceAll("(\n|\n\\w)", " "));
       scriptBuilder.append("\n");
     }
 
