@@ -35,29 +35,26 @@ import com.orientechnologies.orient.core.record.impl.ODocument;
  *
  * This class helps to run commands in one transaction batch script.
  * Criterias:
- *   - Only commands which supported by the Orient team (e.g.: UPDATE, INSERT etc.)
- *   - When the execute command is called, just adds the command into the proper collection.
- *     The transaction capable commands are placed into the parent 'batches' field, the remaining are placed into this class's "irreversibleBatches" field.
- *   - The {@link OrientJdbcConnection#commit()} will call the {@link #executeTransaction()} to perform the script executes
+ *  - Only commands which are supported by the Orient team (e.g.: UPDATE, INSERT etc.)
+ *  - When the execute command is called, just adds the command into the super class's batches field.
+ *  - The {@link OrientJdbcConnection#commit()} will call the {@link #executeTransaction()} to perform
+ *    the script execution
  */
 public class OrientJdbcTransactionalStatement extends OrientJdbcStatement {
 
-  private final Pattern      nonWrappablePattern;
-  private final List<String> nonWrappableBatches;
-
-  private boolean            commited = false;
+  private Pattern invalidScriptPattern = Pattern.compile("(DROP|CREATE|ALTER) (CLASS|PROPERTY|INDEX|DATABASE) .*");
+  private boolean commited             = false;
 
   public OrientJdbcTransactionalStatement(OrientJdbcConnection iConnection) {
     super(iConnection);
-    nonWrappablePattern = Pattern.compile("(DROP|CREATE|ALTER) (CLASS|PROPERTY|INDEX|DATABASE) .*");
-    nonWrappableBatches = new ArrayList<String>();
   }
 
   @Override
   public boolean execute(String sqlCommand) throws SQLException {
-    if (!"".equals(sqlCommand)) {
-      addBatch(sqlCommand);
+    if (invalidScriptPattern.matcher(sqlCommand).matches()) {
+      throw new SQLException("This script is not transactional compatible!" + sqlCommand);
     }
+    addBatch(sqlCommand);
 
     return false;
   }
@@ -78,12 +75,7 @@ public class OrientJdbcTransactionalStatement extends OrientJdbcStatement {
     }
 
     sqlCommand = mayCleanForSpark(sqlCommand);
-    if (nonWrappablePattern.matcher(sqlCommand).matches()) {
-      nonWrappableBatches.add(sqlCommand);
-    } else {
-      super.addBatch(sqlCommand);
-    }
-
+    super.addBatch(sqlCommand);
   }
 
   @Override
@@ -108,8 +100,7 @@ public class OrientJdbcTransactionalStatement extends OrientJdbcStatement {
   }
 
   /**
-   * Execute the collected scripts. First execute irreversible commands (e.g.: CREATE/DROP CLASS, CREATE/DROP PROPERTY) Then execute
-   * the transaction capable commands(e.g.: INSERT, UPDATE)
+   * Execute the collected scripts as a BATCH command;
    *
    * @throws SQLException
    */
@@ -120,14 +111,7 @@ public class OrientJdbcTransactionalStatement extends OrientJdbcStatement {
 
     documents = new ArrayList<ODocument>();
 
-
-    if (nonWrappableBatches.size() > 0) {
-      // First run the irreversible commands
-      executeScript(buildScript(nonWrappableBatches, false));
-    }
-
     if (batches.size() > 0) {
-      // Run the the root batches, because those can be wrapper with 'BEGIN-COMMIT'
       executeScript(buildScript(batches, true));
     }
 
@@ -139,18 +123,14 @@ public class OrientJdbcTransactionalStatement extends OrientJdbcStatement {
   private String buildScript(List<String> scripts, boolean wrap) {
     StringBuilder scriptBuilder = new StringBuilder();
 
-    if (wrap) {
-      scriptBuilder.append("BEGIN\n");
-    }
+    scriptBuilder.append("BEGIN\n");
 
     for (String sql : scripts) {
       scriptBuilder.append(sql.replaceAll("(\n|\n\\w)", " "));
       scriptBuilder.append("\n");
     }
 
-    if (wrap) {
-      scriptBuilder.append("COMMIT\n");
-    }
+    scriptBuilder.append("COMMIT\n");
 
     return scriptBuilder.toString();
   }

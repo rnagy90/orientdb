@@ -24,6 +24,8 @@ public class OrientJdbcTransactionalStatementTest extends OrientJdbcBaseTest {
     conn.setAutoCommit(false);
     Statement statement1 = conn.createStatement();
     Statement statement2 = conn.createStatement();
+    assertTrue((statement1 instanceof OrientJdbcTransactionalStatement));
+    assertTrue((statement2 instanceof OrientJdbcTransactionalStatement));
     assertTrue(statement1 == statement2);
   }
 
@@ -48,47 +50,55 @@ public class OrientJdbcTransactionalStatementTest extends OrientJdbcBaseTest {
 
   @Test
   public void shouldExecuteAllCommands() throws Exception {
-    conn.setAutoCommit(false);
-
-    OrientJdbcTransactionalStatement statement = (OrientJdbcTransactionalStatement) conn.createStatement();
+    Statement statement = conn.createStatement();
     statement.execute("CREATE CLASS TestClass");
     statement.execute("CREATE CLASS TestClassEx");
     statement.execute("CREATE PROPERTY TestClassEx.name STRING (MANDATORY TRUE, NOTNULL TRUE)");
-    statement.execute("INSERT INTO TestClass SET name = 'name1'");
-    statement.execute("INSERT INTO TestClassEx SET name = 'name2'");
-    statement.execute("INSERT INTO TestClassEx SET name = 'name3'");
+
+    conn.setAutoCommit(false);
+    OrientJdbcTransactionalStatement trStatement = (OrientJdbcTransactionalStatement) conn.createStatement();
+    trStatement.execute("INSERT INTO TestClass SET name = 'name1'");
+    trStatement.execute("INSERT INTO TestClassEx SET name = 'name2'");
+    trStatement.execute("INSERT INTO TestClassEx SET name = 'name3'");
     conn.commit();
 
     ODatabaseDocument database = conn.getDatabase();
     OSchema schema = database.getMetadata().getSchema();
-    assertTrue(schema.existsClass("TestClass"));
-    assertTrue(schema.existsClass("TestClassEx"));
     assertEquals(1, database.countClass("TestClass"));
     assertEquals(2, database.countClass("TestClassEx"));
 
     return;
   }
 
-  @Test
-  public void shouldRollbackAllTransactionCapableCommands() throws Exception {
-    conn.setAutoCommit(false);
-    OrientJdbcTransactionalStatement statement = (OrientJdbcTransactionalStatement) conn.createStatement();
+  @Test(expected = SQLException.class)
+  public void shouldRollback() throws Exception {
+    Statement statement = conn.createStatement();
     statement.execute("CREATE CLASS TestClass");
-    statement.execute("INSERT INTO TestClass SET name = 'name1'");
-    statement.execute("CREATE CLASS TestClassEx EXTENDS TestClass");
-    statement.execute("CREATE PROPERTY TestClassEx.randomLink LINK (MANDATORY TRUE, NOTNULL TRUE) ");
-    statement.execute("INSERT INTO TestClassEx SET name = 'name2'");
+    conn.setAutoCommit(false);
+
+    OrientJdbcTransactionalStatement trStatement = (OrientJdbcTransactionalStatement) conn.createStatement();
+    trStatement.execute("INSERT INTO TestClass SET name = 'name1'");
+    trStatement.execute("INSERT INTO TestClassEx SET name = 'name2'");
     try {
       conn.commit();
-      fail("The commit should cause an exception");
     } catch (SQLException ex) {
       ODatabaseDocument database = conn.getDatabase();
-      OSchema schema = database.getMetadata().getSchema();
-      assertTrue(schema.existsClass("TestClass"));
-      assertTrue(schema.existsClass("TestClassEx"));
       assertEquals(0, database.countClass("TestClass"));
-      assertEquals(0, database.countClass("TestClassEx"));
-      return;
+      throw ex;
+    }
+  }
+
+  @Test(expected = SQLException.class)
+  public void shouldDenyExecute() throws Exception {
+    conn.setAutoCommit(false);
+
+    OrientJdbcTransactionalStatement trStatement = (OrientJdbcTransactionalStatement) conn.createStatement();
+    try {
+      trStatement.execute("CREATE CLASS TestClass");
+    } catch (SQLException ex) {
+      ODatabaseDocument database = conn.getDatabase();
+      assertFalse(database.getMetadata().getSchema().existsClass("TestClass"));
+      throw ex;
     }
   }
 }
