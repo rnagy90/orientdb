@@ -52,7 +52,18 @@ public class OrientJdbcTransactionalStatement extends OrientJdbcStatement {
   @Override
   public boolean execute(String sqlCommand) throws SQLException {
     if (invalidScriptPattern.matcher(sqlCommand).matches()) {
-      throw new SQLException("This script is not transactional compatible!" + sqlCommand);
+
+      // check if the force execute enabled
+      String force = connection.getInfo().getProperty("force.invalid.transaction");
+      if (!Boolean.parseBoolean(force)) {
+        throw new SQLException("Invalid transactional command found, but force execute is not enabled!");
+      }
+
+      executeBatch();
+
+      super.execute(sqlCommand);
+
+      return true;
     }
     addBatch(sqlCommand);
 
